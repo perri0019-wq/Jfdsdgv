@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>BOOM</title>
+
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif;font-weight:bold}
+body{margin:0;background:#f4f6ff;font-size:22px}
+
+/* ===== HEADER ===== */
+.header{display:flex;align-items:center;padding:20px;background:#fff;gap:20px}
+.avatar{width:80px;height:80px;border-radius:50%;background:#ddd}
+.menu-back{display:none;background:#eef1ff;padding:30px 46px;border-radius:30px;font-size:32px;cursor:pointer}
+.balance{margin-left:auto;display:flex;align-items:center;background:#eef1ff;padding:30px 44px;border-radius:36px;font-size:38px}
+.balance.win{transform:scale(1.08)}
+.coin-icon{width:60px;height:60px;margin-right:14px}
+
+/* ===== MENU ===== */
+.menu{padding:28px}
+.bomb-btn{
+  width:100%;height:25vh;margin-bottom:24px;
+  position:relative;border:5px solid #4c6fff;
+  border-radius:36px;overflow:hidden;cursor:pointer;background:#000
+}
+.bomb-btn img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.bomb-btn span{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:96px;color:#fff
+}
+
+/* ===== BOOM GAME ===== */
+.game{display:none;padding:26px}
+.win-info{text-align:center;font-size:48px;margin-bottom:26px}
+.next-info{font-size:32px;opacity:.85}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.cell{aspect-ratio:1/1;background:#fff;border-radius:22px;display:flex;align-items:center;justify-content:center}
+.cell img{width:92%;height:92%}
+.cell.boom{animation:shake .35s}
+.controls{margin-top:30px}
+.bet-title{display:flex;align-items:center;font-size:34px;margin-bottom:16px}
+.bet-row{display:flex;gap:22px}
+.bet-row input{flex:1;padding:42px;font-size:46px;border-radius:32px;border:none;text-align:center}
+.bet-row button{padding:42px 48px;font-size:44px;border-radius:32px;border:none}
+.slider{margin:40px auto;width:70%;text-align:center;font-size:36px}
+.play-btn,.cashout-btn{width:100%;padding:38px;font-size:40px;border:none;border-radius:34px;margin-top:26px}
+.play-btn{background:#4c6fff;color:#fff}
+.cashout-btn{background:#22c55e;color:#fff}
+
+@keyframes shake{
+  0%{transform:translateX(0)}
+  25%{transform:translateX(-6px)}
+  50%{transform:translateX(6px)}
+  75%{transform:translateX(-6px)}
+  100%{transform:translateX(0)}
+}
+
+/* ===== DICE ===== */
+.center{display:flex;gap:26px}
+.dice-box{flex:1;background:#fff;border-radius:32px;padding:26px;text-align:center}
+.dice-box input{width:100%;padding:30px;font-size:40px;border-radius:26px;border:none;text-align:center}
+.btn{width:100%;padding:34px;font-size:42px;border:none;border-radius:30px;margin-top:22px;cursor:pointer}
+.green{background:#22c55e;color:#fff}
+.blue{background:#4c6fff;color:#fff}
+.result{text-align:center;font-size:40px;margin-top:30px}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <div class="avatar"></div>
+  <div class="menu-back" id="menuBack" onclick="backToMenu()">в меню 🎰</div>
+  <div class="balance" id="balanceBox">
+    <img src="coin.png" class="coin-icon">
+    <span id="balance">0.00</span>
+  </div>
+</div>
+
+<!-- MENU -->
+<div class="menu" id="menu">
+  <button class="bomb-btn" onclick="openBoom()">
+    <img src="boom-icon.png">
+    <span>BOOM</span>
+  </button>
+  <button class="bomb-btn" onclick="openDice()">
+    <span>DICE</span>
+  </button>
+</div>
+
+<!-- BOOM -->
+<div class="game" id="boomGame">
+  <div class="win-info">
+    Текущий выигрыш<br>
+    <img src="coin.png" class="coin-icon">
+    <span id="possibleWin">0.00</span><br>
+    x<span id="multiplier">1.00</span>
+    <div class="next-info" id="nextInfo"></div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="controls">
+    <div class="bet-title"><img src="coin.png" class="coin-icon">Ставка</div>
+    <div class="bet-row">
+      <button onclick="halfBet()">½</button>
+      <input type="number" id="bet" value="1">
+      <button onclick="doubleBet()">2×</button>
+    </div>
+    <div class="slider">
+      Бомб: <span id="bombCount">3</span><br>
+      <input type="range" min="2" max="10" value="3" oninput="updateBombs(this.value)">
+    </div>
+    <button class="play-btn" id="playBtn" onclick="play()">Играть</button>
+    <button class="cashout-btn" id="cashoutBtn" onclick="cashOut()" style="display:none">Забрать выигрыш</button>
+  </div>
+</div>
+
+<!-- DICE -->
+<div class="game" id="diceGame">
+  <div class="center">
+    <div class="dice-box">Ставка<input type="number" id="diceBet" value="1"></div>
+    <div class="dice-box">Шанс<input type="number" id="diceChance" value="50"></div>
+  </div>
+  <button class="btn green" onclick="playDice('big')">БОЛЬШЕ</button>
+  <button class="btn blue" onclick="playDice('small')">МЕНЬШЕ</button>
+  <div class="result" id="diceResult"></div>
+</div>
+
+<script>
+/* ===== BALANCE ===== */
+let balance=1000;
+const balanceEl=document.getElementById('balance');
+function updateBalance(){
+  balance=Number(balance.toFixed(2));
+  balanceEl.innerText=balance.toFixed(2);
+}
+updateBalance();
+
+/* ===== MENU ===== */
+function backToMenu(){
+  document.querySelectorAll('.game').forEach(g=>g.style.display='none');
+  menu.style.display='block';
+  menuBack.style.display='none';
+}
+function openBoom(){menu.style.display='none';boomGame.style.display='block';menuBack.style.display='block'}
+function openDice(){menu.style.display='none';diceGame.style.display='block';menuBack.style.display='block'}
+
+/* ===== DICE LOGIC ===== */
+function playDice(type){
+  let bet=+diceBet.value, chance=+diceChance.value;
+  if(bet<1||bet>balance||chance<1||chance>95)return;
+  balance-=bet;
+  const coef=(100/chance).toFixed(2);
+  const roll=Math.floor(Math.random()*25999)+1;
+  const win=(type==='big'?roll<=12999:roll>=13000);
+  if(win) balance+=bet*coef;
+  diceResult.innerHTML=win?`🎉 ${roll} +${(bet*coef).toFixed(2)}`:`💥 ${roll} Проигрыш`;
+  updateBalance();
+}
+</script>
+
+</body>
+</html>
